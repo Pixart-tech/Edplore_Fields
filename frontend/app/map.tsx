@@ -137,27 +137,48 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-        >
-          {coordinates.map((coord) => (
-            <Marker
-              key={coord.id}
-              coordinate={{
-                latitude: coord.latitude,
-                longitude: coord.longitude,
-              }}
-              title={coord.title}
-              description={`Lat: ${coord.latitude.toFixed(6)}, Lng: ${coord.longitude.toFixed(6)}`}
-              pinColor="#007AFF"
-            />
-          ))}
-        </MapView>
+        {Platform.OS === 'web' ? (
+          <View style={styles.webMapPlaceholder}>
+            <Ionicons name="map-outline" size={64} color="#8E8E93" />
+            <Text style={styles.webMapText}>Map view is available on mobile devices</Text>
+            <Text style={styles.webMapSubtext}>Install the Expo Go app to view maps</Text>
+            {coordinates.length > 0 && (
+              <ScrollView style={styles.coordinatesList}>
+                <Text style={styles.coordinatesTitle}>Loaded Coordinates:</Text>
+                {coordinates.map((coord, index) => (
+                  <View key={coord.id} style={styles.coordinateItem}>
+                    <Text style={styles.coordinateTitle}>{coord.title}</Text>
+                    <Text style={styles.coordinateLocation}>
+                      {coord.latitude.toFixed(6)}, {coord.longitude.toFixed(6)}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          <MapView
+            style={styles.map}
+            provider={PROVIDER_GOOGLE}
+            region={region}
+            onRegionChangeComplete={setRegion}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+          >
+            {coordinates.map((coord) => (
+              <Marker
+                key={coord.id}
+                coordinate={{
+                  latitude: coord.latitude,
+                  longitude: coord.longitude,
+                }}
+                title={coord.title}
+                description={`Lat: ${coord.latitude.toFixed(6)}, Lng: ${coord.longitude.toFixed(6)}`}
+                pinColor="#007AFF"
+              />
+            ))}
+          </MapView>
+        )}
       </View>
 
       {coordinates.length > 0 && (
