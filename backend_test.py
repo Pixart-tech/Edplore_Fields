@@ -34,14 +34,13 @@ class LocationTrackerAPITester:
             response = requests.get(f"{self.api_base}/health", timeout=10)
             
             print(f"Status Code: {response.status_code}")
-            print(f"Response Headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 data = response.json()
                 print(f"Response Data: {json.dumps(data, indent=2)}")
                 
-                # Verify expected fields
-                expected_fields = ["message", "version", "endpoints"]
+                # Since we're testing health endpoint instead of root, verify health fields
+                expected_fields = ["status", "services"]
                 missing_fields = [field for field in expected_fields if field not in data]
                 
                 if missing_fields:
@@ -51,18 +50,10 @@ class LocationTrackerAPITester:
                         "response": data
                     }
                 
-                # Check CORS headers
-                cors_headers = {
-                    "access-control-allow-origin": response.headers.get("access-control-allow-origin"),
-                    "access-control-allow-methods": response.headers.get("access-control-allow-methods"),
-                    "access-control-allow-headers": response.headers.get("access-control-allow-headers")
-                }
-                print(f"CORS Headers: {cors_headers}")
-                
                 return {
                     "status": "PASSED",
                     "response": data,
-                    "cors_headers": cors_headers
+                    "note": "Backend API accessible via /api/* routes (root serves frontend)"
                 }
             else:
                 return {
