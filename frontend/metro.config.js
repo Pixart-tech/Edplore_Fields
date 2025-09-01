@@ -2,12 +2,28 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
-// // Exclude unnecessary directories from file watching
-// config.watchFolders = [__dirname];
-// config.resolver.blacklistRE = /(.*)\/(__tests__|android|ios|build|dist|.git|node_modules\/.*\/android|node_modules\/.*\/ios|node_modules\/.*\/windows|node_modules\/.*\/macos)(\/.*)?$/;
+// Platform-specific resolver to handle react-native-maps on web
+config.resolver.platforms = ["ios", "android", "native", "web"];
 
-// // Alternative: use a more aggressive exclusion pattern
-// config.resolver.blacklistRE = /node_modules\/.*\/(android|ios|windows|macos|__tests__|\.git|.*\.android\.js|.*\.ios\.js)$/;
+// Add platform-specific module resolution
+config.resolver.resolverMainFields = ["react-native", "browser", "main"];
+
+// Platform-specific handling for react-native-maps
+const originalResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Exclude react-native-maps on web platform
+  if (platform === "web" && moduleName.startsWith("react-native-maps")) {
+    return {
+      type: "empty",
+    };
+  }
+  
+  if (originalResolveRequest) {
+    return originalResolveRequest(context, moduleName, platform);
+  }
+  
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
