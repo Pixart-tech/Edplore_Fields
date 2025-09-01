@@ -14,13 +14,43 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 
-// Platform-specific imports
-let MapView, Marker, PROVIDER_GOOGLE;
+// Placeholder for MapView component when not available
+const WebMapPlaceholder = ({ coordinates }: { coordinates: any[] }) => (
+  <View style={styles.webMapPlaceholder}>
+    <Ionicons name="map-outline" size={64} color="#8E8E93" />
+    <Text style={styles.webMapText}>Map view is available on mobile devices</Text>
+    <Text style={styles.webMapSubtext}>Install the Expo Go app to view maps</Text>
+    {coordinates.length > 0 && (
+      <ScrollView style={styles.coordinatesList}>
+        <Text style={styles.coordinatesTitle}>Loaded Coordinates:</Text>
+        {coordinates.map((coord, index) => (
+          <View key={coord.id} style={styles.coordinateItem}>
+            <Text style={styles.coordinateTitle}>{coord.title}</Text>
+            <Text style={styles.coordinateLocation}>
+              {coord.latitude.toFixed(6)}, {coord.longitude.toFixed(6)}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    )}
+  </View>
+);
+
+// Dynamic imports for React Native Maps (only for native platforms)
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+// Only import react-native-maps on native platforms
 if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+  try {
+    const ReactNativeMaps = require('react-native-maps');
+    MapView = ReactNativeMaps.default || ReactNativeMaps.MapView;
+    Marker = ReactNativeMaps.Marker;
+    PROVIDER_GOOGLE = ReactNativeMaps.PROVIDER_GOOGLE;
+  } catch (error) {
+    console.warn('React Native Maps not available:', error);
+  }
 }
 
 interface Coordinate {
