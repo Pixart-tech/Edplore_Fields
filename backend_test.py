@@ -336,10 +336,11 @@ class LocationTrackerAPITester:
         """Test CORS headers on API endpoints"""
         print("\n🔍 Testing CORS Headers")
         try:
-            # Test OPTIONS request
-            response = requests.options(f"{self.api_base}/health", timeout=10)
+            # Test GET request with Origin header to check CORS
+            headers = {"Origin": "https://example.com"}
+            response = requests.get(f"{self.api_base}/health", headers=headers, timeout=10)
             
-            print(f"OPTIONS Status Code: {response.status_code}")
+            print(f"GET Status Code: {response.status_code}")
             
             cors_headers = {
                 "access-control-allow-origin": response.headers.get("access-control-allow-origin"),
