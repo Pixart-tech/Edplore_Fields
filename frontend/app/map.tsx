@@ -271,6 +271,56 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  webMapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 32,
+  },
+  webMapText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#495057',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  webMapSubtext: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  coordinatesList: {
+    marginTop: 24,
+    maxHeight: 200,
+    width: '100%',
+  },
+  coordinatesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  coordinateItem: {
+    backgroundColor: 'white',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  coordinateTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 4,
+  },
+  coordinateLocation: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
   legendContainer: {
     backgroundColor: 'white',
     borderTopWidth: 1,
