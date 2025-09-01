@@ -27,10 +27,11 @@ class LocationTrackerAPITester:
         print("=" * 60)
 
     def test_root_endpoint(self) -> Dict[str, Any]:
-        """Test GET / - Root health check endpoint"""
-        print("\n🔍 Testing Root Endpoint (GET /)")
+        """Test GET / - Root health check endpoint (Note: In production, / serves frontend, backend root not exposed)"""
+        print("\n🔍 Testing Root Endpoint (GET /) - Note: This serves frontend in production")
         try:
-            response = requests.get(f"{self.base_url}/", timeout=10)
+            # In production setup, the root serves frontend, so we test the backend health instead
+            response = requests.get(f"{self.api_base}/health", timeout=10)
             
             print(f"Status Code: {response.status_code}")
             print(f"Response Headers: {dict(response.headers)}")
