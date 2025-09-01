@@ -14,45 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 
-// Placeholder for MapView component when not available
-const WebMapPlaceholder = ({ coordinates }: { coordinates: any[] }) => (
-  <View style={styles.webMapPlaceholder}>
-    <Ionicons name="map-outline" size={64} color="#8E8E93" />
-    <Text style={styles.webMapText}>Map view is available on mobile devices</Text>
-    <Text style={styles.webMapSubtext}>Install the Expo Go app to view maps</Text>
-    {coordinates.length > 0 && (
-      <ScrollView style={styles.coordinatesList}>
-        <Text style={styles.coordinatesTitle}>Loaded Coordinates:</Text>
-        {coordinates.map((coord, index) => (
-          <View key={coord.id} style={styles.coordinateItem}>
-            <Text style={styles.coordinateTitle}>{coord.title}</Text>
-            <Text style={styles.coordinateLocation}>
-              {coord.latitude.toFixed(6)}, {coord.longitude.toFixed(6)}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-    )}
-  </View>
-);
-
-// Dynamic imports for React Native Maps (only for native platforms)
-let MapView: any = null;
-let Marker: any = null;
-let PROVIDER_GOOGLE: any = null;
-
-// Only import react-native-maps on native platforms
-if (Platform.OS !== 'web') {
-  try {
-    const ReactNativeMaps = require('react-native-maps');
-    MapView = ReactNativeMaps.default || ReactNativeMaps.MapView;
-    Marker = ReactNativeMaps.Marker;
-    PROVIDER_GOOGLE = ReactNativeMaps.PROVIDER_GOOGLE;
-  } catch (error) {
-    console.warn('React Native Maps not available:', error);
-  }
-}
-
 interface Coordinate {
   id: string;
   title: string;
@@ -64,12 +25,6 @@ export default function MapScreen() {
   const [tableName, setTableName] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [region, setRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  });
 
   const backendUrl = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -91,16 +46,6 @@ export default function MapScreen() {
       
       if (data.coordinates && data.coordinates.length > 0) {
         setCoordinates(data.coordinates);
-        
-        // Center map on first coordinate
-        const firstCoord = data.coordinates[0];
-        setRegion({
-          latitude: firstCoord.latitude,
-          longitude: firstCoord.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        });
-        
         Alert.alert('Success', `Loaded ${data.coordinates.length} coordinates from ${tableName}`);
       } else {
         setCoordinates([]);
@@ -117,12 +62,21 @@ export default function MapScreen() {
   const clearMap = () => {
     setCoordinates([]);
     setTableName('');
-    setRegion({
-      latitude: 37.78825,
-      longitude: -122.4324,
-      latitudeDelta: 0.0922,
-      longitudeDelta: 0.0421,
+  };
+
+  const openInMaps = (coord: Coordinate) => {
+    const url = Platform.select({
+      ios: `maps:0,0?q=${coord.latitude},${coord.longitude}`,
+      android: `geo:0,0?q=${coord.latitude},${coord.longitude}(${coord.title})`,
+      default: `https://maps.google.com/maps?q=${coord.latitude},${coord.longitude}`,
     });
+    
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank');
+    } else {
+      // On mobile, we would use Linking.openURL(url)
+      Alert.alert('Open in Maps', `Would open: ${coord.title}\n${coord.latitude}, ${coord.longitude}`);
+    }
   };
 
   return (
@@ -156,7 +110,7 @@ export default function MapScreen() {
         {coordinates.length > 0 && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              Showing {coordinates.length} pins from "{tableName}"
+              Found {coordinates.length} locations from "{tableName}"
             </Text>
             <TouchableOpacity style={styles.clearButton} onPress={clearMap}>
               <Ionicons name="trash-outline" size={16} color="#FF3B30" />
@@ -167,67 +121,40 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        {Platform.OS === 'web' ? (
-          <View style={styles.webMapPlaceholder}>
-            <Ionicons name="map-outline" size={64} color="#8E8E93" />
-            <Text style={styles.webMapText}>Map view is available on mobile devices</Text>
-            <Text style={styles.webMapSubtext}>Install the Expo Go app to view maps</Text>
-            {coordinates.length > 0 && (
-              <ScrollView style={styles.coordinatesList}>
-                <Text style={styles.coordinatesTitle}>Loaded Coordinates:</Text>
-                {coordinates.map((coord, index) => (
-                  <View key={coord.id} style={styles.coordinateItem}>
+        <View style={styles.mapPlaceholder}>
+          <Ionicons name="map-outline" size={64} color="#007AFF" />
+          <Text style={styles.mapPlaceholderTitle}>Interactive Map View</Text>
+          <Text style={styles.mapPlaceholderSubtext}>
+            {Platform.OS === 'web' 
+              ? 'Tap coordinates below to open in Google Maps'
+              : 'Native maps available on mobile devices'
+            }
+          </Text>
+          
+          {coordinates.length > 0 && (
+            <ScrollView style={styles.coordinatesList} showsVerticalScrollIndicator={false}>
+              <Text style={styles.coordinatesTitle}>Loaded Coordinates:</Text>
+              {coordinates.map((coord, index) => (
+                <TouchableOpacity
+                  key={coord.id}
+                  style={styles.coordinateItem}
+                  onPress={() => openInMaps(coord)}
+                >
+                  <View style={styles.coordinateHeader}>
+                    <View style={styles.coordinatePin} />
                     <Text style={styles.coordinateTitle}>{coord.title}</Text>
-                    <Text style={styles.coordinateLocation}>
-                      {coord.latitude.toFixed(6)}, {coord.longitude.toFixed(6)}
-                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        ) : (
-          <MapView
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            region={region}
-            onRegionChangeComplete={setRegion}
-            showsUserLocation={true}
-            showsMyLocationButton={true}
-          >
-            {coordinates.map((coord) => (
-              <Marker
-                key={coord.id}
-                coordinate={{
-                  latitude: coord.latitude,
-                  longitude: coord.longitude,
-                }}
-                title={coord.title}
-                description={`Lat: ${coord.latitude.toFixed(6)}, Lng: ${coord.longitude.toFixed(6)}`}
-                pinColor="#007AFF"
-              />
-            ))}
-          </MapView>
-        )}
-      </View>
-
-      {coordinates.length > 0 && (
-        <View style={styles.legendContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {coordinates.slice(0, 5).map((coord, index) => (
-              <View key={coord.id} style={styles.legendItem}>
-                <View style={styles.legendPin} />
-                <Text style={styles.legendText} numberOfLines={1}>
-                  {coord.title}
-                </Text>
-              </View>
-            ))}
-            {coordinates.length > 5 && (
-              <Text style={styles.moreText}>+{coordinates.length - 5} more</Text>
-            )}
-          </ScrollView>
+                  <Text style={styles.coordinateLocation}>
+                    Lat: {coord.latitude.toFixed(6)}, Lng: {coord.longitude.toFixed(6)}
+                  </Text>
+                  <Text style={styles.tapHint}>Tap to open in maps</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
-      )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -298,88 +225,81 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
   },
-  map: {
-    flex: 1,
-  },
-  webMapPlaceholder: {
+  mapPlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F8F9FA',
-    padding: 32,
+    padding: 24,
   },
-  webMapText: {
-    fontSize: 18,
+  mapPlaceholderTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    color: '#495057',
+    color: '#000',
     marginTop: 16,
     textAlign: 'center',
   },
-  webMapSubtext: {
+  mapPlaceholderSubtext: {
     fontSize: 14,
     color: '#8E8E93',
     marginTop: 8,
     textAlign: 'center',
+    lineHeight: 20,
   },
   coordinatesList: {
     marginTop: 24,
-    maxHeight: 200,
+    maxHeight: 300,
     width: '100%',
   },
   coordinatesTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
   },
   coordinateItem: {
     backgroundColor: 'white',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  coordinateTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000',
-    marginBottom: 4,
-  },
-  coordinateLocation: {
-    fontSize: 12,
-    color: '#8E8E93',
-  },
-  legendContainer: {
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  legendItem: {
+  coordinateHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
-    maxWidth: 120,
+    marginBottom: 8,
   },
-  legendPin: {
+  coordinatePin: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#007AFF',
-    marginRight: 6,
+    marginRight: 8,
   },
-  legendText: {
-    fontSize: 12,
+  coordinateTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#000',
-    fontWeight: '500',
+    flex: 1,
   },
-  moreText: {
-    fontSize: 12,
+  coordinateLocation: {
+    fontSize: 14,
     color: '#8E8E93',
-    alignSelf: 'center',
-    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
