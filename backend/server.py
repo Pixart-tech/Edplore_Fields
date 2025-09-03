@@ -51,7 +51,7 @@ MOCK_COORDINATES = {
 def get_dynamodb_client():
     """Initialize DynamoDB client with error handling"""
     try:
-        if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID != "your-aws-access-key":
+        if is_aws_configured():
             return boto3.client(
                 'dynamodb',
                 aws_access_key_id=AWS_ACCESS_KEY_ID,
