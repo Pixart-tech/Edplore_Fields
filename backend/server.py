@@ -26,10 +26,32 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
+# Mock data for testing when AWS credentials are not available
+MOCK_COORDINATES = {
+    "test_table": [
+        {"id": "1", "title": "Golden Gate Bridge", "latitude": 37.8199, "longitude": -122.4783},
+        {"id": "2", "title": "Alcatraz Island", "latitude": 37.8267, "longitude": -122.4233},
+        {"id": "3", "title": "Fisherman's Wharf", "latitude": 37.8080, "longitude": -122.4177},
+        {"id": "4", "title": "Lombard Street", "latitude": 37.8021, "longitude": -122.4187},
+        {"id": "5", "title": "Union Square", "latitude": 37.7880, "longitude": -122.4074}
+    ],
+    "coordinates_table": [
+        {"id": "1", "title": "San Francisco City Hall", "latitude": 37.7793, "longitude": -122.4192},
+        {"id": "2", "title": "Golden Gate Park", "latitude": 37.7694, "longitude": -122.4862},
+        {"id": "3", "title": "Coit Tower", "latitude": 37.8024, "longitude": -122.4058}
+    ],
+    "bangalore": [
+        {"id": "1", "title": "Bangalore Palace", "latitude": 12.9984, "longitude": 77.5916},
+        {"id": "2", "title": "Lalbagh Botanical Garden", "latitude": 12.9507, "longitude": 77.5848},
+        {"id": "3", "title": "Cubbon Park", "latitude": 12.9716, "longitude": 77.5946},
+        {"id": "4", "title": "UB City Mall", "latitude": 12.9719, "longitude": 77.6068}
+    ]
+}
+
 def get_dynamodb_client():
     """Initialize DynamoDB client with error handling"""
     try:
-        if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+        if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID != "your-aws-access-key":
             return boto3.client(
                 'dynamodb',
                 aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -37,11 +59,18 @@ def get_dynamodb_client():
                 region_name=AWS_REGION
             )
         else:
-            # Fallback for local development or AWS IAM roles
-            return boto3.client('dynamodb', region_name=AWS_REGION)
+            print("⚠️  Using mock data - AWS credentials not configured")
+            return None
     except Exception as e:
         print(f"Error initializing DynamoDB client: {e}")
         return None
+
+def is_aws_configured():
+    """Check if AWS credentials are properly configured"""
+    return (AWS_ACCESS_KEY_ID and 
+            AWS_SECRET_ACCESS_KEY and 
+            AWS_ACCESS_KEY_ID != "your-aws-access-key" and
+            AWS_SECRET_ACCESS_KEY != "your-aws-secret-key")
 
 @app.get("/")
 async def root():
@@ -49,9 +78,11 @@ async def root():
     return {
         "message": "Location Tracker API is running",
         "version": "1.0.0",
+        "mode": "production" if is_aws_configured() else "development (mock data)",
         "endpoints": {
             "get_coordinates": "/api/coordinates/{table_name}",
-            "health": "/api/health"
+            "health": "/api/health",
+            "mock_tables": "/api/mock-tables"
         }
     }
 
@@ -62,6 +93,7 @@ async def health_check():
     
     health_status = {
         "status": "healthy",
+        "mode": "production" if is_aws_configured() else "development",
         "services": {
             "api": "running",
             "dynamodb": "unknown"
@@ -77,15 +109,24 @@ async def health_check():
             health_status["services"]["dynamodb"] = f"error: {str(e)}"
             health_status["status"] = "degraded"
     else:
-        health_status["services"]["dynamodb"] = "not_configured"
-        health_status["status"] = "degraded"
+        health_status["services"]["dynamodb"] = "mock_mode"
+        health_status["message"] = "Using mock data for development. Configure AWS credentials for production."
     
     return health_status
+
+@app.get("/api/mock-tables")
+async def get_mock_tables():
+    """Get list of available mock tables for testing"""
+    return {
+        "available_tables": list(MOCK_COORDINATES.keys()),
+        "description": "Mock data tables available for testing",
+        "note": "Configure AWS credentials to use real DynamoDB tables"
+    }
 
 @app.get("/api/coordinates/{table_name}")
 async def get_coordinates(table_name: str):
     """
-    Fetch coordinates from DynamoDB table
+    Fetch coordinates from DynamoDB table or return mock data
     Expected table structure:
     - id (String): Primary key
     - title (String): Description/title for the coordinate
@@ -94,12 +135,29 @@ async def get_coordinates(table_name: str):
     """
     dynamodb_client = get_dynamodb_client()
     
+    # If AWS is not configured, use mock data
     if not dynamodb_client:
-        raise HTTPException(
-            status_code=500, 
-            detail="DynamoDB client not configured. Please check AWS credentials."
-        )
+        # Check if we have mock data for this table
+        table_key = table_name.lower()
+        if table_key in MOCK_COORDINATES:
+            return {
+                "table_name": table_name,
+                "coordinates": MOCK_COORDINATES[table_key],
+                "count": len(MOCK_COORDINATES[table_key]),
+                "mode": "mock_data",
+                "message": "Using mock data. Configure AWS credentials for real DynamoDB access."
+            }
+        else:
+            # Return empty result for unknown table
+            return {
+                "table_name": table_name,
+                "coordinates": [],
+                "count": 0,
+                "mode": "mock_data",
+                "message": f"No mock data available for table '{table_name}'. Available tables: {list(MOCK_COORDINATES.keys())}"
+            }
     
+    # Try to use real DynamoDB
     try:
         # Scan the table to get all items
         response = dynamodb_client.scan(
@@ -124,16 +182,28 @@ async def get_coordinates(table_name: str):
         return {
             "table_name": table_name,
             "coordinates": coordinates,
-            "count": len(coordinates)
+            "count": len(coordinates),
+            "mode": "production"
         }
         
     except ClientError as e:
         error_code = e.response['Error']['Code']
         
         if error_code == 'ResourceNotFoundException':
+            # If table not found, fallback to mock data
+            table_key = table_name.lower()
+            if table_key in MOCK_COORDINATES:
+                return {
+                    "table_name": table_name,
+                    "coordinates": MOCK_COORDINATES[table_key],
+                    "count": len(MOCK_COORDINATES[table_key]),
+                    "mode": "mock_fallback",
+                    "message": f"DynamoDB table '{table_name}' not found. Using mock data instead."
+                }
+            
             raise HTTPException(
                 status_code=404,
-                detail=f"Table '{table_name}' not found in DynamoDB"
+                detail=f"Table '{table_name}' not found in DynamoDB and no mock data available"
             )
         elif error_code == 'AccessDeniedException':
             raise HTTPException(
@@ -148,6 +218,17 @@ async def get_coordinates(table_name: str):
     
     except Exception as e:
         print(f"Unexpected error: {e}")
+        # Fallback to mock data on unexpected errors
+        table_key = table_name.lower()
+        if table_key in MOCK_COORDINATES:
+            return {
+                "table_name": table_name,
+                "coordinates": MOCK_COORDINATES[table_key],
+                "count": len(MOCK_COORDINATES[table_key]),
+                "mode": "error_fallback",
+                "message": f"Error accessing DynamoDB. Using mock data instead. Error: {str(e)}"
+            }
+        
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
@@ -162,10 +243,11 @@ async def create_test_data(table_name: str):
     dynamodb_client = get_dynamodb_client()
     
     if not dynamodb_client:
-        raise HTTPException(
-            status_code=500, 
-            detail="DynamoDB client not configured. Please check AWS credentials."
-        )
+        return {
+            "message": "Mock mode active - no DynamoDB operations performed",
+            "available_mock_tables": list(MOCK_COORDINATES.keys()),
+            "note": "Configure AWS credentials to create real DynamoDB tables"
+        }
     
     # Sample test coordinates (San Francisco area)
     test_coordinates = [
@@ -239,7 +321,8 @@ async def create_test_data(table_name: str):
         return {
             "message": f"Successfully created test data in table '{table_name}'",
             "coordinates_added": len(test_coordinates),
-            "table_name": table_name
+            "table_name": table_name,
+            "mode": "production"
         }
         
     except ClientError as e:
