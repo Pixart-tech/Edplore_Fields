@@ -143,19 +143,31 @@ DYNAMODB_TABLE_NAME=your-table-name
 
 ## Usage
 
+### Authentication Flow
+1. **Open the app** - Authentication screen appears first
+2. **Sign in with Google** - Required to access all features
+3. **Grant permissions** when prompted for location access
+
+### Map View (Main Tab)
+1. **Automatically opens** after authentication as the main screen
+2. Enter a DynamoDB table name in the input field
+3. Tap "Fetch" to load coordinates from the specified table
+4. **On web**: Click coordinates to open in Google Maps
+5. **On mobile**: View pins on native map with full interaction
+
 ### Location Tracking
-1. Open the app and sign in with Google
-2. Grant location permissions when prompted
-3. Tap "Start Tracking" to begin location tracking
-4. Location data is automatically saved to Firebase
+1. Switch to the "Location Tracking" tab 
+2. Tap "Start Tracking" to begin real-time location recording
+3. Location data is automatically saved to Firebase every 10 seconds
+4. View current tracking status and recent location data
 5. Tap "Stop Tracking" to end the session
 
-### Map View
-1. Switch to the "Map View" tab
-2. Enter a DynamoDB table name
-3. Tap "Fetch" to load coordinates
-4. On web: Click coordinates to open in Google Maps
-5. On mobile: View pins on native map
+### User Flow
+```
+Authentication Required → Map View (Main) → Location Tracking (Secondary)
+```
+
+All features require Google authentication for security and data association.
 
 ## Testing
 
