@@ -6,64 +6,19 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { signInWithCredential, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { ref, push, serverTimestamp } from 'firebase/database';
 import * as Location from 'expo-location';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../contexts/AuthContext';
-import { auth, database } from '../lib/firebase';
-
-WebBrowser.maybeCompleteAuthSession();
+import { database } from '../lib/firebase';
 
 export default function LocationTrackingScreen() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [isTracking, setIsTracking] = useState(false);
   const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
   const [trackingData, setTrackingData] = useState<any[]>([]);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: Platform.select({
-      ios: 'your-ios-client-id.apps.googleusercontent.com',
-      android: 'your-android-client-id.apps.googleusercontent.com',
-      web: 'your-web-client-id.apps.googleusercontent.com',
-    }),
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        const credential = GoogleAuthProvider.credential(authentication.idToken, authentication.accessToken);
-        signInWithCredential(auth, credential);
-      }
-    }
-  }, [response]);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await promptAsync();
-    } catch (error) {
-      console.error('Google Sign In Error:', error);
-      Alert.alert('Error', 'Failed to sign in with Google');
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      if (isTracking) {
-        stopTracking();
-      }
-      await signOut(auth);
-    } catch (error) {
-      console.error('Sign Out Error:', error);
-      Alert.alert('Error', 'Failed to sign out');
-    }
-  };
 
   const requestLocationPermission = async () => {
     try {
@@ -132,48 +87,8 @@ export default function LocationTrackingScreen() {
     Alert.alert('Success', 'Location tracking stopped');
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (!user) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.authContainer}>
-          <Ionicons name="location" size={80} color="#007AFF" style={styles.icon} />
-          <Text style={styles.title}>Location Tracker</Text>
-          <Text style={styles.subtitle}>Sign in with Google to start tracking your location</Text>
-          
-          <TouchableOpacity 
-            style={styles.googleButton} 
-            onPress={handleGoogleSignIn}
-            disabled={!request}
-          >
-            <Ionicons name="logo-google" size={24} color="white" />
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <Text style={styles.welcomeText}>Welcome, {user.displayName}</Text>
-          <Text style={styles.emailText}>{user.email}</Text>
-        </View>
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.trackingContainer}>
         <View style={styles.statusContainer}>
           <View style={[styles.statusIndicator, { backgroundColor: isTracking ? '#34C759' : '#8E8E93' }]} />
@@ -209,6 +124,25 @@ export default function LocationTrackingScreen() {
             </View>
           </View>
         )}
+
+        <View style={styles.infoCard}>
+          <View style={styles.infoHeader}>
+            <Ionicons name="information-circle" size={24} color="#007AFF" />
+            <Text style={styles.infoHeaderText}>How it works</Text>
+          </View>
+          <Text style={styles.infoText}>
+            • Tap "Start Tracking" to begin recording your location
+          </Text>
+          <Text style={styles.infoText}>
+            • Location data is saved every 10 seconds to Firebase
+          </Text>
+          <Text style={styles.infoText}>
+            • Tap "Stop Tracking" to end the session
+          </Text>
+          <Text style={styles.infoText}>
+            • All data is securely stored in your Firebase account
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -218,72 +152,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F2F2F7',
-  },
-  authContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  icon: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    marginBottom: 48,
-    lineHeight: 24,
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  googleButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#8E8E93',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  emailText: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  signOutButton: {
-    padding: 8,
   },
   trackingContainer: {
     flex: 1,
@@ -325,6 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
+    marginBottom: 24,
   },
   dataTitle: {
     fontSize: 16,
@@ -346,5 +215,29 @@ const styles = StyleSheet.create({
   timestampText: {
     fontSize: 12,
     color: '#8E8E93',
+  },
+  infoCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginLeft: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 6,
+    lineHeight: 20,
   },
 });
