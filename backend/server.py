@@ -67,14 +67,26 @@ def get_dynamodb_client():
 
 def is_aws_configured():
     """Check if AWS credentials are properly configured"""
-    return (AWS_ACCESS_KEY_ID and 
-            AWS_SECRET_ACCESS_KEY and 
-            not AWS_ACCESS_KEY_ID.startswith("AKIA") and  # AWS access keys start with AKIA
-            not AWS_ACCESS_KEY_ID.startswith("your-") and
-            not AWS_SECRET_ACCESS_KEY.startswith("dummy") and
-            not AWS_SECRET_ACCESS_KEY.startswith("your-") and
-            len(AWS_ACCESS_KEY_ID) > 10 and 
-            len(AWS_SECRET_ACCESS_KEY) > 10)
+    # Check for dummy/placeholder values
+    dummy_patterns = [
+        "AKIADUMMYKEY", "dummysecretkey", "your-aws-", "your-secret-", 
+        "DUMMY", "PLACEHOLDER", "EXAMPLE", "TEST_KEY"
+    ]
+    
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        return False
+        
+    # Check if credentials contain dummy patterns
+    for pattern in dummy_patterns:
+        if (pattern.lower() in AWS_ACCESS_KEY_ID.lower() or 
+            pattern.lower() in AWS_SECRET_ACCESS_KEY.lower()):
+            return False
+    
+    # Basic length validation (real AWS keys are longer)
+    if len(AWS_ACCESS_KEY_ID) < 16 or len(AWS_SECRET_ACCESS_KEY) < 30:
+        return False
+        
+    return True
 
 @app.get("/")
 async def root():
