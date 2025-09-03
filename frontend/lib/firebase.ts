@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence, GoogleAuthProvider } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, GoogleAuthProvider, getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: Constants.expoConfig?.extra?.firebaseApiKey || process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -16,10 +17,21 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth with AsyncStorage persistence
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-});
+// Initialize Auth with proper persistence for React Native
+let auth;
+try {
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  }
+} catch (error) {
+  // If initializeAuth fails (already initialized), get the existing instance
+  auth = getAuth(app);
+}
 
+export { auth };
 export const database = getDatabase(app);
 export const googleProvider = new GoogleAuthProvider();
