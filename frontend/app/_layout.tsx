@@ -14,10 +14,11 @@ WebBrowser.maybeCompleteAuthSession();
 function AuthScreen() {
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: Platform.select({
-      ios: 'your-ios-client-id.apps.googleusercontent.com',
-      android: 'your-android-client-id.apps.googleusercontent.com',
-      web: 'your-web-client-id.apps.googleusercontent.com',
+      ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     }),
+    scopes: ['openid', 'profile', 'email'],
   });
 
   React.useEffect(() => {
@@ -25,8 +26,14 @@ function AuthScreen() {
       const { authentication } = response;
       if (authentication?.accessToken) {
         const credential = GoogleAuthProvider.credential(authentication.idToken, authentication.accessToken);
-        signInWithCredential(auth, credential);
+        signInWithCredential(auth, credential).catch(error => {
+          console.error('Sign in error:', error);
+          Alert.alert('Authentication Error', 'Failed to sign in. Please try again.');
+        });
       }
+    } else if (response?.type === 'error') {
+      console.error('Google Auth Error:', response.error);
+      Alert.alert('Authentication Error', `Google Sign-In failed: ${response.error?.message || 'Unknown error'}`);
     }
   }, [response]);
 
@@ -35,6 +42,7 @@ function AuthScreen() {
       await promptAsync();
     } catch (error) {
       console.error('Google Sign In Error:', error);
+      Alert.alert('Error', 'Failed to initiate Google Sign-In');
     }
   };
 
